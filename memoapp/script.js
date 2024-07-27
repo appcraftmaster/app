@@ -1,70 +1,62 @@
+const { Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint, Events } = Matter;
+
 const canvas = document.getElementById('simulationCanvas');
-const ctx = canvas.getContext('2d');
+const engine = Engine.create();
+const world = engine.world;
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+const render = Render.create({
+    canvas: canvas,
+    engine: engine,
+    options: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        wireframes: false
+    }
+});
 
-const gravity = 0.5;
-const bounceFactor = 0.7;
+Render.run(render);
+const runner = Runner.create();
+Runner.run(runner, engine);
+
 let balls = [];
-let selectedBall = null;
-let offsetX = 0;
-let offsetY = 0;
 
-class Ball {
-    constructor(x, y, radius, color, text) {
-        this.x = x;
-        this.y = y;
-        this.radius = radius;
-        this.color = color;
-        this.text = text;
-        this.dy = 0;
-    }
+// Create walls
+const walls = [
+    Bodies.rectangle(window.innerWidth / 2, -25, window.innerWidth, 50, { isStatic: true }), // Top wall
+    Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 25, window.innerWidth, 50, { isStatic: true }), // Bottom wall
+    Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true }), // Left wall
+    Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true }) // Right wall
+];
 
-    draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-        ctx.closePath();
-
-        ctx.fillStyle = 'black';
-        ctx.font = `${this.radius / 2}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.text, this.x, this.y);
-    }
-
-    update() {
-        if (selectedBall !== this) {
-            if (this.y + this.radius + this.dy > canvas.height) {
-                this.dy = -this.dy * bounceFactor;
-            } else {
-                this.dy += gravity;
-            }
-            this.y += this.dy;
-        }
-        this.draw();
-    }
-
-    isPointInside(x, y) {
-        const dx = x - this.x;
-        const dy = y - this.y;
-        return dx * dx + dy * dy <= this.radius * this.radius;
-    }
-}
+World.add(world, walls);
 
 function loadBallsFromCSV(data) {
+    balls.forEach(ball => World.remove(world, ball));
     balls = [];
+    
     data.forEach(row => {
         const x = parseFloat(row[0]);
         const y = parseFloat(row[1]);
         const radius = parseFloat(row[2]);
         const color = row[3];
         const text = row[4];
-        balls.push(new Ball(x, y, radius, color, text));
+
+        const ball = Bodies.circle(x, y, radius, {
+            restitution: 0.7,
+            render: {
+                fillStyle: color,
+                strokeStyle: 'black',
+                lineWidth: 1
+            },
+            custom: {
+                text: text,
+                radius: radius
+            }
+        });
+
+        World.add(world, ball);
+        balls.push(ball);
     });
-    animate();
 }
 
 function handleFileSelect(event) {
@@ -78,73 +70,50 @@ function handleFileSelect(event) {
     }
 }
 
-function handleMouseDown(event) {
-    const mouseX = event.clientX;
-    const mouseY = event.clientY;
-
-    balls.forEach(ball => {
-        if (ball.isPointInside(mouseX, mouseY)) {
-            selectedBall = ball;
-            offsetX = mouseX - ball.x;
-            offsetY = mouseY - ball.y;
-        }
-    });
-}
-
-function handleMouseMove(event) {
-    if (selectedBall) {
-        selectedBall.x = event.clientX - offsetX;
-        selectedBall.y = event.clientY - offsetY;
-    }
-}
-
-function handleMouseUp() {
-    selectedBall = null;
-}
-
-function handleTouchStart(event) {
-    const touch = event.touches[0];
-    const touchX = touch.clientX;
-    const touchY = touch.clientY;
-
-    balls.forEach(ball => {
-        if (ball.isPointInside(touchX, touchY)) {
-            selectedBall = ball;
-            offsetX = touchX - ball.x;
-            offsetY = touchY - ball.y;
-        }
-    });
-}
-
-function handleTouchMove(event) {
-    if (selectedBall) {
-        const touch = event.touches[0];
-        selectedBall.x = touch.clientX - offsetX;
-        selectedBall.y = touch.clientY - offsetY;
-    }
-}
-
-function handleTouchEnd() {
-    selectedBall = null;
-}
-
-function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    balls.forEach(ball => ball.update());
-    requestAnimationFrame(animate);
-}
-
 document.getElementById('fileInput').addEventListener('change', handleFileSelect);
-canvas.addEventListener('mousedown', handleMouseDown);
-canvas.addEventListener('mousemove', handleMouseMove);
-canvas.addEventListener('mouseup', handleMouseUp);
-canvas.addEventListener('mouseleave', handleMouseUp); // Ensure ball deselects if mouse leaves the canvas
-
-canvas.addEventListener('touchstart', handleTouchStart);
-canvas.addEventListener('touchmove', handleTouchMove);
-canvas.addEventListener('touchend', handleTouchEnd);
 
 window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    render.canvas.width = window.innerWidth;
+    render.canvas.height = window.innerHeight;
+    Render.setPixelRatio(render, window.devicePixelRatio);
+
+    // Update wall positions and sizes
+    World.remove(world, walls);
+    walls[0] = Bodies.rectangle(window.innerWidth / 2, -25, window.innerWidth, 50, { isStatic: true }); // Top wall
+    walls[1] = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 25, window.innerWidth, 50, { isStatic: true }); // Bottom wall
+    walls[2] = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true }); // Left wall
+    walls[3] = Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true }); // Right wall
+    World.add(world, walls);
+});
+
+// Add mouse control
+const mouse = Mouse.create(render.canvas);
+const mouseConstraint = MouseConstraint.create(engine, {
+    mouse: mouse,
+    constraint: {
+        stiffness: 0.2,
+        render: {
+            visible: false
+        }
+    }
+});
+World.add(world, mouseConstraint);
+
+render.mouse = mouse;
+
+// Custom rendering for text
+Events.on(render, 'afterRender', function() {
+    const context = render.context;
+    balls.forEach(ball => {
+        const text = ball.custom.text;
+        const radius = ball.custom.radius;
+        const x = ball.position.x;
+        const y = ball.position.y;
+
+        context.fillStyle = 'black';
+        context.font = `${radius / 2}px Arial`;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(text, x, y);
+    });
 });
