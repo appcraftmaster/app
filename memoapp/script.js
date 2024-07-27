@@ -23,16 +23,6 @@ Runner.run(runner, engine);
 
 let balls = [];
 
-// Create walls
-const walls = [
-    Bodies.rectangle(window.innerWidth / 2, -25, window.innerWidth, 50, { isStatic: true }), // Top wall
-    Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 25, window.innerWidth, 50, { isStatic: true }), // Bottom wall
-    Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true }), // Left wall
-    Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true }) // Right wall
-];
-
-World.add(world, walls);
-
 function loadBallsFromCSV(data) {
     balls.forEach(ball => World.remove(world, ball));
     balls = [];
@@ -82,14 +72,6 @@ window.addEventListener('resize', () => {
     render.canvas.width = window.innerWidth;
     render.canvas.height = window.innerHeight;
     Render.setPixelRatio(render, window.devicePixelRatio);
-
-    // Update wall positions and sizes
-    World.remove(world, walls);
-    walls[0] = Bodies.rectangle(window.innerWidth / 2, -25, window.innerWidth, 50, { isStatic: true }); // Top wall
-    walls[1] = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 25, window.innerWidth, 50, { isStatic: true }); // Bottom wall
-    walls[2] = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true }); // Left wall
-    walls[3] = Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true }); // Right wall
-    World.add(world, walls);
 });
 
 // Add mouse control
@@ -121,5 +103,21 @@ Events.on(render, 'afterRender', function() {
         context.textAlign = 'center';
         context.textBaseline = 'middle';
         context.fillText(text, x, y);
+    });
+});
+
+// Update ball positions for looping
+Events.on(engine, 'beforeUpdate', function() {
+    balls.forEach(ball => {
+        if (ball.position.x - ball.circleRadius > window.innerWidth) {
+            Matter.Body.setPosition(ball, { x: -ball.circleRadius, y: ball.position.y });
+        } else if (ball.position.x + ball.circleRadius < 0) {
+            Matter.Body.setPosition(ball, { x: window.innerWidth + ball.circleRadius, y: ball.position.y });
+        }
+        if (ball.position.y - ball.circleRadius > window.innerHeight) {
+            Matter.Body.setPosition(ball, { x: ball.position.x, y: -ball.circleRadius });
+        } else if (ball.position.y + ball.circleRadius < 0) {
+            Matter.Body.setPosition(ball, { x: ball.position.x, y: window.innerHeight + ball.circleRadius });
+        }
     });
 });
