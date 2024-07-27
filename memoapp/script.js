@@ -4,6 +4,9 @@ const canvas = document.getElementById('simulationCanvas');
 const engine = Engine.create();
 const world = engine.world;
 
+// Disable gravity
+engine.gravity.y = 0;
+
 const render = Render.create({
     canvas: canvas,
     engine: engine,
@@ -43,6 +46,9 @@ function loadBallsFromCSV(data) {
 
         const ball = Bodies.circle(x, y, radius, {
             restitution: 0.7,
+            friction: 0,
+            frictionAir: 0,
+            frictionStatic: 0,
             render: {
                 fillStyle: color,
                 strokeStyle: 'black',
